@@ -1,0 +1,23 @@
+# Backup files
+*.backup
+*.bak
+*.rsc.backup
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Test files
+test*.rsc
+*_test.rsc
+
+# Claude settings
+.claude/
