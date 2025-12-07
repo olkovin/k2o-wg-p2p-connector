@@ -10,7 +10,8 @@ This script automates the creation of a WireGuard point-to-point tunnel between 
 
 ## Features
 
-- **One script for both sides** — same file runs on server and client
+- **One script for both sides** — same file runs on both routers
+- **Automatic role detection** — determines server/client based on IP addresses
 - **Automatic key exchange** — no manual copy-paste of public keys
 - **Unique tunnel ID** — each tunnel gets a timestamp-based identifier
 - **Easy removal** — auto-generated removal script for clean uninstall
@@ -18,26 +19,73 @@ This script automates the creation of a WireGuard point-to-point tunnel between 
 
 ## Quick Start
 
-1. Download `wg-p2p-connector.rsc` to both routers
-2. Edit configuration section on both routers:
-   ```routeros
-   :global p2pRole "server"              # or "client"
-   :global p2pServerAddress "1.2.3.4"    # public IP of server
-   :global p2pSstpPass "YourPassword"    # same on both
-   ```
-3. On **SERVER** (router with public IP), run first:
-   ```routeros
-   /import wg-p2p-connector.rsc
-   ```
-4. On **CLIENT**, run within 5 minutes:
-   ```routeros
-   /import wg-p2p-connector.rsc
-   ```
-5. Done! Test with:
-   ```routeros
-   /ping 10.200.0.1   # from client
-   /ping 10.200.0.2   # from server
-   ```
+### 1. Download and configure
+
+Download `wg-p2p-connector.rsc` and edit the configuration section:
+
+```routeros
+# ═══════════════════════════════════════════════════════════════════
+#  BASIC CONFIGURATION (required)
+# ═══════════════════════════════════════════════════════════════════
+
+:global p2pSide1Address "1.2.3.4"          # Public IP of Side1 (server)
+:global p2pSide2Address "5.6.7.8"          # Public IP of Side2 (or empty if behind NAT)
+:global p2pSstpPass "ChangeThisPassword!"  # Key exchange password (same on both)
+```
+
+**Role detection:**
+- If both IPs are public → first to run becomes server
+- If Side2 is empty or behind NAT → Side1 is server, Side2 is client
+
+### 2. Upload to both routers
+
+Upload the configured script to both routers.
+
+### 3. Run on Side1 (server) first
+
+```routeros
+/import wg-p2p-connector.rsc
+```
+
+### 4. Run on Side2 (client) within 5 minutes
+
+```routeros
+/import wg-p2p-connector.rsc
+```
+
+### 5. Done! Test connectivity
+
+```routeros
+/ping 10.200.0.1   # from Side2
+/ping 10.200.0.2   # from Side1
+```
+
+## How It Works
+
+```mermaid
+sequenceDiagram
+    participant S as Side1 (Server)
+    participant C as Side2 (Client)
+
+    Note over S: 1. Generate Tunnel ID
+    Note over S: 2. Create WG interface
+    Note over S: 3. Start SSTP server
+    S-->>S: Waiting for client...
+
+    Note over C: 1. Create WG interface
+    C->>S: 2. Connect via SSTP
+    C->>S: 3. Send client pubkey (SSH)
+    S->>C: 4. Return server pubkey + ID
+
+    Note over S: 5. Add WG peer
+    Note over S: 6. Add firewall rule
+    Note over S: 7. Stop SSTP server
+
+    Note over C: 5. Add WG peer
+    Note over C: 6. Disconnect SSTP
+
+    S<-->C: WireGuard tunnel active!
+```
 
 ## Configuration Reference
 
@@ -45,8 +93,8 @@ This script automates the creation of a WireGuard point-to-point tunnel between 
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `p2pRole` | Router role | `"server"` or `"client"` |
-| `p2pServerAddress` | Public IP/FQDN of server | `"vpn.example.com"` |
+| `p2pSide1Address` | Public IP/FQDN of Side1 | `"vpn.example.com"` |
+| `p2pSide2Address` | Public IP of Side2 (empty if NAT) | `"5.6.7.8"` or `""` |
 | `p2pSstpPass` | Key exchange password | `"SecurePass123!"` |
 
 ### Main (with defaults)
@@ -54,8 +102,8 @@ This script automates the creation of a WireGuard point-to-point tunnel between 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `p2pTunnelName` | `"tunnel1"` | Short tunnel identifier |
-| `p2pServerWgIP` | `"10.200.0.1"` | Server WireGuard IP |
-| `p2pClientWgIP` | `"10.200.0.2"` | Client WireGuard IP |
+| `p2pSide1WgIP` | `"10.200.0.1"` | Side1 WireGuard IP |
+| `p2pSide2WgIP` | `"10.200.0.2"` | Side2 WireGuard IP |
 | `p2pWgNetmask` | `"/30"` | Network mask |
 
 ### Advanced (optional)
@@ -67,30 +115,10 @@ This script automates the creation of a WireGuard point-to-point tunnel between 
 | `p2pSstpUser` | `"p2p-k2o-exchange"` | SSTP username |
 | `p2pTimeout` | `300` | Server wait timeout (seconds) |
 
-## How It Works
-
-```
-SERVER (run first)                     CLIENT (run second)
-──────────────────                     ────────────────────
-1. Generate Tunnel ID
-2. Create WG interface
-3. Start SSTP server
-4. Wait for client...                  1. Create WG interface
-                                       2. Connect via SSTP
-        ◄─── SSTP tunnel ───►
-                                       3. Exchange keys via SSH
-5. Receive client pubkey               4. Receive server pubkey + ID
-6. Add WG peer                         5. Add WG peer
-7. Add firewall rule
-8. Stop SSTP server                    6. Disconnect SSTP
-9. Generate remove script              7. Generate remove script
-
-        ◄─── WireGuard tunnel ───►
-```
-
 ## Removal
 
 To remove the tunnel, run on each router:
+
 ```routeros
 /system script run remove-p2p-k2o-{ID}
 ```
@@ -102,11 +130,13 @@ The removal script name is shown at the end of deployment.
 The script creates point-to-point connectivity only. For routing additional networks, see [MikroTik WireGuard documentation](https://help.mikrotik.com/docs/display/ROS/WireGuard).
 
 **Route client LAN (192.168.88.0/24) through tunnel (on server):**
+
 ```routeros
 /ip route add dst-address=192.168.88.0/24 gateway=10.200.0.2
 ```
 
 **Route all traffic through tunnel (on client):**
+
 ```routeros
 /ip route add dst-address=0.0.0.0/0 gateway=10.200.0.1 distance=10
 ```
@@ -118,8 +148,8 @@ If automatic exchange fails, the script will display instructions for manual key
 ## Requirements
 
 - MikroTik RouterOS 7.x with WireGuard support
-- Server must have public IP (or port forwarding for SSTP and WG ports)
-- Client must be able to reach server on SSTP port (443 by default)
+- Side1 must have public IP (or port forwarding for SSTP and WG ports)
+- Side2 must be able to reach Side1 on SSTP port (443 by default)
 
 ## License
 
