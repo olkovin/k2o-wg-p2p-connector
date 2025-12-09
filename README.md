@@ -64,29 +64,25 @@ Upload the configured script to both routers.
 ## How It Works
 
 ```mermaid
-sequenceDiagram
-    participant S as Side1 (Server)
-    participant C as Side2 (Client)
+flowchart LR
+    subgraph SERVER["🖥️ Side1 (Server)"]
+        S1[Create WG] --> S2[Start SSTP]
+        S2 --> S3[Wait...]
+    end
 
-    Note over S: 1. Generate Tunnel ID
-    Note over S: 2. Check port conflicts
-    Note over S: 3. Create WG interface
-    Note over S: 4. Start SSTP server
-    S-->>S: Waiting for client...
+    subgraph CLIENT["💻 Side2 (Client)"]
+        C1[Create WG] --> C2[Connect SSTP]
+    end
 
-    Note over C: 1. Create WG interface
-    C->>S: 2. Connect via SSTP
-    C->>S: 3. Send client pubkey (SSH)
-    S->>C: 4. Return pubkey + ID + port
+    subgraph EXCHANGE["🔑 Key Exchange"]
+        C2 --> E1[SSH: send pubkey]
+        E1 --> E2[Return: pubkey+port]
+    end
 
-    Note over S: 5. Add WG peer
-    Note over S: 6. Add firewall rule
-    Note over S: 7. Stop SSTP server
-
-    Note over C: 5. Add WG peer (with port)
-    Note over C: 6. Disconnect SSTP
-
-    Note over S,C: ✅ WireGuard tunnel active!
+    subgraph DONE["✅ Complete"]
+        E2 --> D1[Add peers]
+        D1 --> D2[WG Active!]
+    end
 ```
 
 ## Configuration Reference

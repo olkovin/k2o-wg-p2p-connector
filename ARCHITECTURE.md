@@ -94,53 +94,28 @@ Example: `20251206173000` = 2025-12-06 17:30:00
 ## Key Exchange Flow
 
 ```mermaid
-sequenceDiagram
-    participant S as Side1 (Server)
-    participant C as Side2 (Client)
-
-    rect rgb(200, 220, 255)
-        Note over S: INITIALIZATION
-        S->>S: Generate Tunnel ID
-        S->>S: Check port conflicts
-        S->>S: Create WG interface
-        S->>S: Get public key
-        S->>S: Start SSTP server
-        S->>S: Create register script
+flowchart LR
+    subgraph INIT["1️⃣ Initialize"]
+        direction TB
+        S1["Server: Create WG\nCheck port conflicts\nStart SSTP"]
+        C1["Client: Create WG"]
     end
 
-    S-->>S: Waiting for client (5 min)...
-
-    rect rgb(220, 255, 220)
-        Note over C: INITIALIZATION
-        C->>C: Create WG interface
-        C->>C: Get public key
+    subgraph EXCHANGE["2️⃣ Exchange"]
+        direction TB
+        E1["Client→Server: SSTP connect"]
+        E2["Client→Server: SSH pubkey"]
+        E3["Server→Client: pubkey+ID+port"]
     end
 
-    rect rgb(255, 240, 200)
-        Note over S,C: KEY EXCHANGE
-        C->>S: Connect via SSTP
-        C->>S: SSH: send client pubkey
-        S->>C: Return: pubkey + ID + port
+    subgraph FINAL["3️⃣ Finalize"]
+        direction TB
+        F1["Both: Add WG peer"]
+        F2["Server: Firewall + cleanup"]
+        F3["Both: Generate remove script"]
     end
 
-    rect rgb(255, 220, 220)
-        Note over S: FINALIZATION
-        S->>S: Add WG peer
-        S->>S: Add firewall rule (with actual port)
-        S->>S: Stop SSTP server
-        S->>S: Cleanup temp entities
-        S->>S: Generate remove script
-    end
-
-    rect rgb(255, 220, 220)
-        Note over C: FINALIZATION
-        C->>C: Disconnect SSTP
-        C->>C: Add WG peer (with endpoint + port)
-        C->>C: Rename interface with ID
-        C->>C: Generate remove script
-    end
-
-    Note over S,C: ✅ WireGuard tunnel active!
+    INIT --> EXCHANGE --> FINAL --> DONE["✅ Tunnel Active"]
 ```
 
 ## Single Adoption Mechanism

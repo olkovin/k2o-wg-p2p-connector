@@ -64,29 +64,25 @@
 ## Як це працює
 
 ```mermaid
-sequenceDiagram
-    participant S as Side1 (Сервер)
-    participant C as Side2 (Клієнт)
+flowchart LR
+    subgraph SERVER["🖥️ Side1 (Сервер)"]
+        S1[Створює WG] --> S2[Запускає SSTP]
+        S2 --> S3[Чекає...]
+    end
 
-    Note over S: 1. Генерує Tunnel ID
-    Note over S: 2. Перевіряє конфлікти портів
-    Note over S: 3. Створює WG інтерфейс
-    Note over S: 4. Запускає SSTP сервер
-    S-->>S: Чекає клієнта...
+    subgraph CLIENT["💻 Side2 (Клієнт)"]
+        C1[Створює WG] --> C2[Підключається SSTP]
+    end
 
-    Note over C: 1. Створює WG інтерфейс
-    C->>S: 2. Підключається по SSTP
-    C->>S: 3. Передає client pubkey (SSH)
-    S->>C: 4. Повертає pubkey + ID + port
+    subgraph EXCHANGE["🔑 Обмін ключами"]
+        C2 --> E1[SSH: передає pubkey]
+        E1 --> E2[Відповідь: pubkey+port]
+    end
 
-    Note over S: 5. Додає WG peer
-    Note over S: 6. Додає firewall правило
-    Note over S: 7. Вимикає SSTP сервер
-
-    Note over C: 5. Додає WG peer (з портом)
-    Note over C: 6. Відключається від SSTP
-
-    Note over S,C: ✅ WireGuard тунель активний!
+    subgraph DONE["✅ Готово"]
+        E2 --> D1[Додає peers]
+        D1 --> D2[WG Активний!]
+    end
 ```
 
 ## Довідник конфігурації
