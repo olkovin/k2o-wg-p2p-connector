@@ -13,6 +13,7 @@ This script automates the creation of a WireGuard point-to-point tunnel between 
 - **One script for both sides** — same file runs on both routers
 - **Automatic role detection** — determines server/client based on IP addresses
 - **Automatic key exchange** — no manual copy-paste of public keys
+- **Port conflict detection** — auto-finds available port if default is busy
 - **Unique tunnel ID** — each tunnel gets a timestamp-based identifier
 - **Easy removal** — auto-generated removal script for clean uninstall
 - **Firewall integration** — automatically opens WireGuard port on server
@@ -68,20 +69,21 @@ sequenceDiagram
     participant C as Side2 (Client)
 
     Note over S: 1. Generate Tunnel ID
-    Note over S: 2. Create WG interface
-    Note over S: 3. Start SSTP server
+    Note over S: 2. Check port conflicts
+    Note over S: 3. Create WG interface
+    Note over S: 4. Start SSTP server
     S-->>S: Waiting for client...
 
     Note over C: 1. Create WG interface
     C->>S: 2. Connect via SSTP
     C->>S: 3. Send client pubkey (SSH)
-    S->>C: 4. Return server pubkey + ID
+    S->>C: 4. Return pubkey + ID + port
 
     Note over S: 5. Add WG peer
     Note over S: 6. Add firewall rule
     Note over S: 7. Stop SSTP server
 
-    Note over C: 5. Add WG peer
+    Note over C: 5. Add WG peer (with port)
     Note over C: 6. Disconnect SSTP
 
     Note over S,C: ✅ WireGuard tunnel active!
@@ -110,10 +112,12 @@ sequenceDiagram
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `p2pWgPort` | `51820` | WireGuard UDP port |
+| `p2pWgPort` | `51820` | WireGuard UDP port (auto-increments if busy) |
 | `p2pSstpPort` | `443` | SSTP TCP port for key exchange |
 | `p2pSstpUser` | `"p2p-k2o-exchange"` | SSTP username |
 | `p2pTimeout` | `300` | Server wait timeout (seconds) |
+
+> **Note:** If `p2pWgPort` is already in use, the server automatically finds the next available port and communicates it to the client.
 
 ## Removal
 
@@ -121,6 +125,19 @@ To remove the tunnel, run on each router:
 
 ```routeros
 /system script run remove-p2p-k2o-{ID}
+```
+
+**Safety feature:** You must run the removal script **3 times within 30 seconds** to confirm deletion. This prevents accidental tunnel removal.
+
+```
+==================================================
+  REMOVAL CONFIRMATION REQUIRED
+==================================================
+  Tunnel ID: 20251209123456
+
+  Run this script 2 more time(s)
+  within 30 seconds to confirm removal.
+==================================================
 ```
 
 The removal script name is shown at the end of deployment.
@@ -144,6 +161,15 @@ The script creates point-to-point connectivity only. For routing additional netw
 ## Manual Key Exchange
 
 If automatic exchange fails, the script will display instructions for manual key copy-paste.
+
+For manual mode, set these globals on the client before running finalize:
+
+```routeros
+:global p2pServerPubkey "SERVER_PUBLIC_KEY"
+:global p2pServerTunnelID "TUNNEL_ID"
+:global p2pServerPort 51821   # only if server uses non-default port
+/system script run p2p-k2o-finalize
+```
 
 ## Requirements
 

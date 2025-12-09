@@ -7,9 +7,11 @@ Technical design document for k2o-wg-p2p-connector.
 1. **Single script** — same file works on both routers
 2. **Automatic role detection** — based on IP addresses
 3. **Automatic key exchange** — no manual intervention required
-4. **One adoption at a time** — server handles only one pending connection
-5. **Clean removal** — all entities can be removed by tunnel ID
-6. **Fallback to manual** — if automation fails, show instructions
+4. **Port conflict detection** — auto-finds available port if default is busy
+5. **One adoption at a time** — server handles only one pending connection
+6. **Safe removal** — requires 3 confirmations within 30 seconds
+7. **Clean removal** — all entities can be removed by tunnel ID
+8. **Fallback to manual** — if automation fails, show instructions
 
 ## Role Detection Logic
 
@@ -99,6 +101,7 @@ sequenceDiagram
     rect rgb(200, 220, 255)
         Note over S: INITIALIZATION
         S->>S: Generate Tunnel ID
+        S->>S: Check port conflicts
         S->>S: Create WG interface
         S->>S: Get public key
         S->>S: Start SSTP server
@@ -117,13 +120,13 @@ sequenceDiagram
         Note over S,C: KEY EXCHANGE
         C->>S: Connect via SSTP
         C->>S: SSH: send client pubkey
-        S->>C: Return: server pubkey + tunnel ID
+        S->>C: Return: pubkey + ID + port
     end
 
     rect rgb(255, 220, 220)
         Note over S: FINALIZATION
         S->>S: Add WG peer
-        S->>S: Add firewall rule
+        S->>S: Add firewall rule (with actual port)
         S->>S: Stop SSTP server
         S->>S: Cleanup temp entities
         S->>S: Generate remove script
@@ -132,7 +135,7 @@ sequenceDiagram
     rect rgb(255, 220, 220)
         Note over C: FINALIZATION
         C->>C: Disconnect SSTP
-        C->>C: Add WG peer (with endpoint)
+        C->>C: Add WG peer (with endpoint + port)
         C->>C: Rename interface with ID
         C->>C: Generate remove script
     end
@@ -149,6 +152,7 @@ Only one adoption process can be active on server at a time.
 :global p2pAdoptionActive false
 :global p2pAdoptionID ""
 :global p2pAdoptionServerPubkey ""
+:global p2pAdoptionServerPort
 
 # Check before starting new adoption
 :if ($p2pAdoptionActive) do={
@@ -161,9 +165,39 @@ Only one adoption process can be active on server at a time.
 :set p2pAdoptionActive true
 :set p2pAdoptionID $tunnelID
 :set p2pAdoptionServerPubkey $myPubkey
+:set p2pAdoptionServerPort $actualWgPort
 
 # Clear on completion/timeout/cancel
 :set p2pAdoptionActive false
+```
+
+## Port Conflict Detection
+
+Server automatically finds available port if default is in use:
+
+```mermaid
+flowchart LR
+    A[Check port 51820] --> B{In use?}
+    B -->|No| C[Use 51820]
+    B -->|Yes| D[Try 51821]
+    D --> E{In use?}
+    E -->|No| F[Use 51821]
+    E -->|Yes| G[Try next...]
+    G --> H[Up to +100]
+```
+
+```routeros
+:local actualWgPort $p2pWgPort
+:local portInUse true
+:while ($portInUse && ($actualWgPort < ($p2pWgPort + 100))) do={
+    :local existingWg [/interface wireguard find where listen-port=$actualWgPort]
+    :if ([:len $existingWg] > 0) do={
+        :put ("Port $actualWgPort already used by: " . [/interface wireguard get $existingWg name])
+        :set actualWgPort ($actualWgPort + 1)
+    } else={
+        :set portInUse false
+    }
+}
 ```
 
 ## Firewall Integration
@@ -182,7 +216,7 @@ flowchart LR
 :if ([:len $dropRules] > 0) do={
     :local firstDrop [:pick $dropRules 0]
     /ip firewall filter add \
-        chain=input protocol=udp dst-port=$p2pWgPort \
+        chain=input protocol=udp dst-port=$actualWgPort \
         action=accept comment=$p2pComment place-before=$firstDrop
 }
 ```
@@ -229,36 +263,49 @@ If automatic key exchange fails:
 
 ## Remove Script
 
-Generated on both server and client:
+Generated on both server and client with **safety confirmation**:
+
+```
+==================================================
+  REMOVAL CONFIRMATION REQUIRED
+==================================================
+  Tunnel ID: 20251209123456
+
+  Run this script 2 more time(s)
+  within 30 seconds to confirm removal.
+==================================================
+```
+
+The script requires **3 executions within 30 seconds** to actually perform the removal. This prevents accidental tunnel deletion.
 
 ```routeros
 # remove-p2p-k2o-{id}
-:local tunnelID "{id}"
-:local marker "ID:$tunnelID"
+# Safety: Run 3 times within 30 seconds to confirm removal
 
-:put "Removing P2P tunnel: $tunnelID"
-:log warning "P2P-WG: Removing tunnel $tunnelID"
+:global p2pRemoveConfirm{id}
+:global p2pRemoveTime{id}
 
-# Remove WG peers
+# Check if confirmation expired (30 sec)
+:if (elapsed > 30) do={ :set p2pRemoveConfirm{id} 0 }
+
+# Increment counter
+:set p2pRemoveConfirm{id} ($p2pRemoveConfirm{id} + 1)
+
+# Need 3 confirmations
+:if ($p2pRemoveConfirm{id} < 3) do={
+    :put "Run $remaining more time(s) within 30 seconds"
+    :error "Confirmation required"
+}
+
+# Actually remove (on 3rd run)
 :do { /interface wireguard peers remove [find where comment~$marker] } on-error={}
-
-# Remove IP addresses
 :do { /ip address remove [find where comment~$marker] } on-error={}
-
-# Remove firewall rules
 :do { /ip firewall filter remove [find where comment~$marker] } on-error={}
-
-# Remove routes
 :do { /ip route remove [find where comment~$marker] } on-error={}
-
-# Remove WG interface
 :do { /interface wireguard remove [find where comment~$marker] } on-error={}
-
-# Remove this script
 :do { /system script remove [find where comment~$marker] } on-error={}
 
 :put "Tunnel $tunnelID removed!"
-:log warning "P2P-WG: Tunnel $tunnelID removed"
 ```
 
 ## Error Handling
