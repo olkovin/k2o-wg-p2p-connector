@@ -1,6 +1,6 @@
 # k2o-wg-p2p-connector
 
-[![🇺🇦 Українська](https://img.shields.io/badge/🇺🇦-Українська-blue?style=for-the-badge)](README.uk.md)
+[![🇺🇦](https://img.shields.io/badge/🇺🇦-blue?style=for-the-badge)](README.uk.md)
 
 Automated WireGuard P2P tunnel setup between two MikroTik RouterOS devices.
 
@@ -67,25 +67,30 @@ Upload the configured script to both routers.
 <summary>📊 Show diagram</summary>
 
 ```mermaid
-flowchart LR
-    subgraph SERVER["🖥️ Side1 (Server)"]
-        S1[Create WG] --> S2[Start SSTP]
-        S2 --> S3[Wait...]
+flowchart TB
+    subgraph INIT["1️⃣ Initialization"]
+        direction LR
+        S1["🖥️ SERVER<br/>Create WG interface<br/>Find free port<br/>Start SSTP server"]
+        C1["💻 CLIENT<br/>Create WG interface<br/>Connect via SSTP"]
     end
 
-    subgraph CLIENT["💻 Side2 (Client)"]
-        C1[Create WG] --> C2[Connect SSTP]
+    subgraph EXCHANGE["2️⃣ Key Exchange via SSH"]
+        direction LR
+        E1["Client sends pubkey<br/>━━━━━━━━━━━━━━━▶"]
+        E2["◀━━━━━━━━━━━━━━━<br/>Server returns:<br/>• pubkey<br/>• tunnel ID<br/>• WG port"]
     end
 
-    subgraph EXCHANGE["🔑 Key Exchange"]
-        C2 --> E1[SSH: send pubkey]
-        E1 --> E2[Return: pubkey+port]
+    subgraph FINALIZE["3️⃣ Finalize"]
+        direction LR
+        F1["🖥️ SERVER<br/>Add client peer<br/>Add firewall rule<br/>Cleanup SSTP"]
+        F2["💻 CLIENT<br/>Add server peer<br/>Set endpoint"]
     end
 
-    subgraph DONE["✅ Complete"]
-        E2 --> D1[Add peers]
-        D1 --> D2[WG Active!]
+    subgraph RESULT["✅ Result"]
+        R1["WireGuard P2P Tunnel Active!<br/>10.200.0.1 ◄━━ encrypted ━━► 10.200.0.2"]
     end
+
+    INIT --> EXCHANGE --> FINALIZE --> RESULT
 ```
 
 </details>
