@@ -185,7 +185,7 @@ For manual mode, set these globals on the client before running finalize:
 
 ## License
 
-CC BY-NC 4.0 (Non-Commercial) — see [LICENSE](LICENSE)
+k2o Custom License — free to use, attribution required, no resale — see [LICENSE](LICENSE)
 
 ## Support the Project
 

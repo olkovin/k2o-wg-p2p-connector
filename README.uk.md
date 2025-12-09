@@ -185,7 +185,7 @@ flowchart TB
 
 ## Ліцензія
 
-CC BY-NC 4.0 (Некомерційна) — див. [LICENSE](LICENSE)
+k2o Custom License — вільне використання, вказування авторства, без перепродажу — див. [LICENSE](LICENSE)
 
 ## Підтримати проект
 
