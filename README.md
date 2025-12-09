@@ -1,6 +1,6 @@
 # k2o-wg-p2p-connector
 
-[🇺🇦 Українська](README.uk.md)
+[![UA Українська](https://img.shields.io/badge/UA-Українська-blue?style=for-the-badge)](README.uk.md)
 
 Automated WireGuard P2P tunnel setup between two MikroTik RouterOS devices.
 
