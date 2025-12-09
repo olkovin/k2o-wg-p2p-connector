@@ -1,6 +1,6 @@
 # k2o-wg-p2p-connector
 
-[Українська версія](README.uk.md)
+[![🇺🇦 Українська](https://img.shields.io/badge/🇺🇦-Українська-blue?style=for-the-badge)](README.uk.md)
 
 Automated WireGuard P2P tunnel setup between two MikroTik RouterOS devices.
 
@@ -84,7 +84,7 @@ sequenceDiagram
     Note over C: 5. Add WG peer
     Note over C: 6. Disconnect SSTP
 
-    S<-->C: WireGuard tunnel active!
+    Note over S,C: ✅ WireGuard tunnel active!
 ```
 
 ## Configuration Reference

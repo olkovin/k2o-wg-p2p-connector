@@ -1,6 +1,6 @@
 # k2o-wg-p2p-connector
 
-[English version](README.md)
+[![🇬🇧 English](https://img.shields.io/badge/🇬🇧-English-blue?style=for-the-badge)](README.md)
 
 Автоматизоване створення WireGuard P2P тунелю між двома MikroTik RouterOS пристроями.
 
@@ -84,7 +84,7 @@ sequenceDiagram
     Note over C: 5. Додає WG peer
     Note over C: 6. Відключається від SSTP
 
-    S<-->C: WireGuard тунель активний!
+    Note over S,C: ✅ WireGuard тунель активний!
 ```
 
 ## Довідник конфігурації

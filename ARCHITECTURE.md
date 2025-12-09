@@ -137,7 +137,7 @@ sequenceDiagram
         C->>C: Generate remove script
     end
 
-    S<-->C: WireGuard tunnel active!
+    Note over S,C: ✅ WireGuard tunnel active!
 ```
 
 ## Single Adoption Mechanism
