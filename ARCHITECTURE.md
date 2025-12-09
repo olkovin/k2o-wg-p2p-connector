@@ -301,6 +301,6 @@ k2o-wg-p2p-connector/
 ├── README.uk.md           # Ukrainian documentation
 ├── ARCHITECTURE.md        # This file
 ├── wg-p2p-connector.rsc   # Main script
-├── LICENSE                # MIT License
+├── LICENSE                # CC BY-NC 4.0
 └── .gitignore
 ```

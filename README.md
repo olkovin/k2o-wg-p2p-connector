@@ -63,6 +63,9 @@ Upload the configured script to both routers.
 
 ## How It Works
 
+<details>
+<summary>📊 Show diagram</summary>
+
 ```mermaid
 flowchart LR
     subgraph SERVER["🖥️ Side1 (Server)"]
@@ -84,6 +87,8 @@ flowchart LR
         D1 --> D2[WG Active!]
     end
 ```
+
+</details>
 
 ## Configuration Reference
 
@@ -175,7 +180,7 @@ For manual mode, set these globals on the client before running finalize:
 
 ## License
 
-MIT License — see [LICENSE](LICENSE)
+CC BY-NC 4.0 (Non-Commercial) — see [LICENSE](LICENSE)
 
 ## Support the Project
 
